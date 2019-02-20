@@ -39,3 +39,8 @@ virsh edit --domain debian9
 ```XML
 <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'/>
 ```
+
+## References
+
+* [libvirt networking handbook](https://jamielinux.com/docs/libvirt-networking-handbook/)
+* [virt-install one liners](https://raymii.org/s/articles/virt-install_introduction_and_copy_paste_distro_install_commands.html)
