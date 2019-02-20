@@ -1,0 +1,20 @@
+# This format is understood by iptables-restore. See `man iptables-restore`.
+*filter
+:INPUT ACCEPT [6290:744351]
+:FORWARD DROP [0:0]
+:OUTPUT ACCEPT [4558:331829]
+:DOCKER - [0:0]
+:DOCKER-ISOLATION-STAGE-1 - [0:0]
+:DOCKER-ISOLATION-STAGE-2 - [0:0]
+:DOCKER-USER - [0:0]
+# Allow established traffic to the private subnet.
+-A FORWARD -d 192.168.187.0/24 -o virbr10 -m conntrack --ctstate RELATED,ESTABLISHED -j ACCEPT
+# Allow outbound traffic from the private subnet.
+-A FORWARD -s 192.168.187.0/24 -i virbr10 -j ACCEPT
+# Allow traffic between virtual machines.
+-A FORWARD -i virbr10 -o virbr10 -j ACCEPT
+# Reject everything else.
+-A FORWARD -i virbr10 -j REJECT --reject-with icmp-port-unreachable
+-A FORWARD -o virbr10 -j REJECT --reject-with icmp-port-unreachable
+COMMIT
+# Done
