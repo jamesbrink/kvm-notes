@@ -54,8 +54,8 @@ virt-install \
     --os-variant=win8.1 \
     --network=default \
     --graphics vnc,listen=0.0.0.0 \
-    --disk windows10.qcow2,size=60,bus=virtio \
-    --disk /usr/share/virtio/virtio-win.iso,device=cdrom,bus=ide \
+    --disk windows10.qcow2,size=60 \
+    --disk /usr/share/virtio/virtio-win.iso,device=cdrom \
     --cdrom windows10.iso
 ```
 
