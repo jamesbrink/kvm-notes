@@ -8,7 +8,7 @@ This is just a dumping ground for some Linux KVM notes and scripts for later ref
 To create a Debian 9 instance. 
 
 ```shell
-    virt-install \
+virt-install \
     --name debian9 \
     --ram 1024 \
     --disk path=./debian8.qcow2,size=9 \
@@ -19,6 +19,24 @@ To create a Debian 9 instance.
     --console pty,target_type=serial \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --location 'http://ftp.nl.debian.org/debian/dists/stretch/main/installer-amd64/' \
+    --extra-args 'console=ttyS0,115200n8 serial' \
+```
+
+
+Ubuntu 18.04 LTS with 4 vcpu and 8GB of mem
+
+```shell
+virt-install \
+    --name ubuntu18.04 \
+    --ram 8192 \
+    --disk path=./ubuntu18.04.qcow2,size=40 \
+    --vcpus 4 \
+    --os-type linux \
+    --os-variant ubuntu18.04 \
+    --network bridge=virbr10 \
+    --console pty,target_type=serial \
+    --graphics vnc,listen=0.0.0.0 --noautoconsole \
+    --location 'http://archive.ubuntu.com/ubuntu/dists/bionic/main/installer-amd64/' \
     --extra-args 'console=ttyS0,115200n8 serial' \
 ```
 
@@ -38,6 +56,30 @@ virsh edit --domain debian9
 
 ```XML
 <graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'/>
+```
+
+## Create snaphosts with virsh
+
+```shell
+virsh snapshot-create-as --domain {VM-NAME} --name "{SNAPSHOT-NAME}"
+```
+
+## dnsmasq
+
+Running dnsmasq in the foreground
+
+```shell
+sudo dnsmasq --conf-file=/var/lib/dnsmasq/virbr10/dnsmasq.conf -d
+```
+
+## Resetting virsh default network
+
+To reset the virsh default network run the following
+
+```shell
+virsh net-define --file virsh-default-network.xml
+virsh net-start default
+virsh net-autostart default
 ```
 
 ## References

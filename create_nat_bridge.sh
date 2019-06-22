@@ -17,15 +17,16 @@ sudo sysctl -p
 
 # Setup forwarding rules
 # TODO convert to iptables commands
-sudo iptables-restore < forwarding.iptables
-sudo iptables-restore < nat.iptables
-sudo iptables-restore < mangle.iptables
+sudo iptables-restore < iptables/forwarding.iptables
+sudo iptables-restore < iptables/nat.iptables
+sudo iptables-restore < iptables/mangle.iptables
 
 
 # Setup DNSmasq
 sudo mkdir -p /var/lib/dnsmasq/virbr10
 sudo touch /var/lib/dnsmasq/virbr10/hostsfile
 sudo touch /var/lib/dnsmasq/virbr10/leases
+# sudo systemctl restart dnsmasq.service
 
 # Drop dnsmasq config
 sudo cp dnsmasq.conf /var/lib/dnsmasq/virbr10/dnsmasq.conf
