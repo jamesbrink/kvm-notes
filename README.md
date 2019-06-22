@@ -40,6 +40,25 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial' \
 ```
 
+Windows 10
+
+install virtio-win (`yay -S virtio-win`)
+
+```shell
+virt-install \
+    --name=windows10 \
+    --ram=8192 \
+    --cpu=host \
+    --vcpus=2 \
+    --os-type=windows \
+    --os-variant=win8.1 \
+    --network=default \
+    --graphics vnc,listen=0.0.0.0 \
+    --disk windows10.qcow2,size=60,bus=virtio \
+    --disk /usr/share/virtio/virtio-win.iso,device=cdrom,bus=ide \
+    --cdrom windows10.iso
+```
+
 You can remove the `network` argument to use the default built in NAT.  
 
 Be sure to get a terminal after install and run the following if you want to continue using tty console. *This does not cover grub support*
