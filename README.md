@@ -43,6 +43,8 @@ virt-install \
 Windows 10
 
 install virtio-win (`yay -S virtio-win`)
+after install be sure to install / update drivers from virtio
+and install spice client from website.
 
 ```shell
 virt-install \
@@ -53,7 +55,7 @@ virt-install \
     --os-type=windows \
     --os-variant=win8.1 \
     --network=default \
-    --graphics vnc,listen=0.0.0.0 \
+    --graphics spice,listen=0.0.0.0 \
     --disk windows10.qcow2,size=60 \
     --disk /usr/share/virtio/virtio-win.iso,device=cdrom \
     --cdrom windows10.iso
