@@ -19,7 +19,7 @@ virt-install \
     --console pty,target_type=serial \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --location 'http://ftp.nl.debian.org/debian/dists/stretch/main/installer-amd64/' \
-    --extra-args 'console=ttyS0,115200n8 serial' \
+    --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
 
@@ -33,11 +33,11 @@ virt-install \
     --vcpus 4 \
     --os-type linux \
     --os-variant ubuntu18.04 \
-    --network bridge=virbr10 \
+    --network default \
     --console pty,target_type=serial \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --location 'http://archive.ubuntu.com/ubuntu/dists/bionic/main/installer-amd64/' \
-    --extra-args 'console=ttyS0,115200n8 serial' \
+    --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
 Windows 10
@@ -66,6 +66,7 @@ You can remove the `network` argument to use the default built in NAT.
 Be sure to get a terminal after install and run the following if you want to continue using tty console. *This does not cover grub support*
 
 ```shell
+chroot /target/
 systemctl enable serial-getty@ttyS0.service
 ```
 
