@@ -5,7 +5,7 @@ This is just a dumping ground for some Linux KVM notes and scripts for later ref
 
 ## Creating guest instances
 
-To create a Debian 9 instance. 
+To create a Debian 9 instance connected to virtual birdge. 
 
 ```shell
 virt-install \
@@ -19,6 +19,24 @@ virt-install \
     --console pty,target_type=serial \
     --graphics vnc,listen=0.0.0.0 --noautoconsole \
     --location 'http://ftp.nl.debian.org/debian/dists/stretch/main/installer-amd64/' \
+    --extra-args 'console=ttyS0,115200n8 serial'
+```
+
+
+Debian 10
+
+```shell
+virt-install \
+    --name debian10 \
+    --ram 4096 \
+    --disk path=./debian10.qcow2,size=20 \
+    --vcpus 2 \
+    --os-type linux \
+    --os-variant debiantesting \
+    --network default \
+    --console pty,target_type=serial \
+    --graphics vnc,listen=0.0.0.0 --noautoconsole \
+    --location 'http://ftp.nl.debian.org/debian/dists/buster/main/installer-amd64/' \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
