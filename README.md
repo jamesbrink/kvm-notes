@@ -5,7 +5,7 @@ This is just a dumping ground for some Linux KVM notes and scripts for later ref
 
 ## Creating guest instances
 
-To create a Debian 9 instance connected to virtual birdge. 
+To create a Debian 9 instance connected to virtual bridge. 
 
 ```shell
 virt-install \
