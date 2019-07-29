@@ -58,6 +58,53 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
+Alpine Linux
+
+ISO install
+
+```shell
+wget http://dl-cdn.alpinelinux.org/alpine/v3.10/releases/x86_64/alpine-virt-3.10.1-x86_64.iso
+```
+
+```shell
+virt-install \
+    --name alpine \
+    --ram 512 \
+    --disk path=./alpine.qcow2,size=2 \
+    --vcpus 1 \
+    --os-type linux \
+    --os-variant alpinelinux3.8 \
+    --network default \
+    --console pty,target_type=serial \
+    --graphics vnc,listen=0.0.0.0 --noautoconsole \
+    --cdrom alpine-virt-3.10.1-x86_64.iso
+```
+
+netboot method (not fully working)
+
+```shell
+wget http://dl-cdn.alpinelinux.org/alpine/v3.10/releases/x86_64/alpine-netboot-3.10.1-x86_64.tar.gz
+mkdir -p alpine
+tar xfv alpine-netboot-3.10.1-x86_64.tar.gz -C alpine
+```
+
+ TODO - add the modloop line `modloop=url`
+
+```shell
+virt-install \
+    --name alpine \
+    --ram 512 \
+    --disk path=./alpine.qcow2,size=2 \
+    --vcpus 1 \
+    --os-type linux \
+    --os-variant alpinelinux3.8 \
+    --network default \
+    --console pty,target_type=serial \
+    --graphics vnc,listen=0.0.0.0 --noautoconsole \
+    --boot kernel=alpine/boot/vmlinuz-vanilla,initrd=alpine/boot/initramfs-vanilla,kernel_args="console=ttyS0 ip=dhcp alpine_repo=http://dl-cdn.alpinelinux.org/alpine/v3.10/main/ modules=loop,squashfs,sd-mod,usb-storage"
+```
+
+
 Windows 10
 
 install virtio-win (`yay -S virtio-win`)
