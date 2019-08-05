@@ -5,6 +5,8 @@ This is just a dumping ground for some Linux KVM notes and scripts for later ref
 
 ## Creating guest instances
 
+
+### Debian 9
 To create a Debian 9 instance connected to virtual bridge. 
 
 ```shell
@@ -23,7 +25,7 @@ virt-install \
 ```
 
 
-Debian 10
+### Debian 10
 
 ```shell
 virt-install \
@@ -64,6 +66,7 @@ apt-get install -y docker-ce docker-ce-cli containerd.io;
 ```
 
 
+### Ubuntu 18.04
 Ubuntu 18.04 LTS with 4 vcpu and 8GB of mem
 
 ```shell
@@ -81,7 +84,7 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
-Alpine Linux
+### Alpine Linux
 
 ISO install
 
@@ -128,7 +131,28 @@ virt-install \
 ```
 
 
-Windows 10
+
+### CentOS 7
+
+**This boot tends to hang for a few moments before launching installer. I believe this is due to low entropy**
+
+```shell
+virt-install \
+    --name centos7 \
+    --ram 4096 \
+    --disk path=./centos7.qcow2,size=40 \
+    --vcpus 2 \
+    --os-type linux \
+    --os-variant centos7.0 \
+    --network default \
+    --console pty,target_type=serial \
+    --graphics none \
+    --location 'https://mirrors.mit.edu/centos/7/os/x86_64/' \
+    --extra-args 'console=ttyS0,115200n8 serial'
+```
+
+
+### Windows 10
 
 install virtio-win (`yay -S virtio-win`)
 after install be sure to install / update drivers from virtio
@@ -187,6 +211,16 @@ sudo dnsmasq --conf-file=/var/lib/dnsmasq/virbr10/dnsmasq.conf -d
 To reset the virsh default network run the following
 
 ```shell
+sudo virsh net-destroy default
+sudo virsh net-undefine default
+sudo virsh net-define --file virsh-default-network.xml
+sudo virsh net-start default
+sudo virsh net-autostart default
+```
+
+```shell
+virsh net-destroy default
+virsh net-undefine default
 virsh net-define --file virsh-default-network.xml
 virsh net-start default
 virsh net-autostart default
