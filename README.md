@@ -41,6 +41,29 @@ virt-install \
 ```
 
 
+Installing Docker on Debian/Ubuntu:  
+```shell
+apt-get install -y \
+    apt-transport-https \
+    ca-certificates \
+    curl \
+    gnupg2 \
+    software-properties-common; \
+curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -; \
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -; \
+add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/debian \
+   $(lsb_release -cs) \
+   stable"; \
+add-apt-repository \
+   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
+   $(lsb_release -cs) \
+   stable"; \
+apt-get update; \
+apt-get install -y docker-ce docker-ce-cli containerd.io;
+```
+
+
 Ubuntu 18.04 LTS with 4 vcpu and 8GB of mem
 
 ```shell

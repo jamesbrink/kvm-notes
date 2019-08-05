@@ -1,0 +1,22 @@
+{
+    "builders": [{
+        "type": "lxd",
+        "name": "gitlab-ce",
+        "image": "ubuntu:bionic",
+        "output_image": "gitlab-ce",
+        "publish_properties": {
+            "description": "GitLabCE"
+        }
+    }],
+    "provisioners": [{
+        "type": "shell",
+        "inline": [
+            "sudo apt-get update",
+            "sudo DEBIAN_FRONTEND=noninteractive  apt-get dist-upgrade -yq",
+            "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y apt-transport-https ca-certificates curl software-properties-common jq vim",
+            "sudo DEBIAN_FRONTEND=noninteractive apt-get install -y postfix",
+            "curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.deb.sh | sudo bash",
+            "sudo EXTERNAL_URL=\"https://gitlab.example.com\" DEBIAN_FRONTEND=noninteractive apt-get install gitlab-ee || exit 0"
+        ]
+    }]
+}
