@@ -1,3 +1,5 @@
 *.iso
 *.qcow2
 alpine
+packer_cache
+packer/kvm/output/*

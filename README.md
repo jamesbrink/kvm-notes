@@ -151,6 +151,23 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
+### CentOS 7 Import (IPA Example)
+
+```shell
+virt-install \
+    --name ipa \
+    --ram 4096 \
+    --disk path=./packer/kvm/output/ipa/ipa.urandom.io,format=qcow2 \
+    --vcpus 2 \
+    --os-type linux \
+    --os-variant centos7.0 \
+    --network default \
+    --console pty,target_type=serial \
+    --graphics none \
+    --import
+```
+
+
 
 ### Windows 10
 

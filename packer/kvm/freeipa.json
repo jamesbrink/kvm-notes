@@ -1,0 +1,27 @@
+{
+    "builders":
+    [
+      {
+        "type": "qemu",
+        "iso_url": "http://127.0.0.1:8080/CentOS-7-x86_64-Minimal-1810.iso",
+        "iso_checksum": "38d5d51d9d100fd73df031ffd6bd8b1297ce24660dc8c13a3b8b4534a4bd291c",
+        "iso_checksum_type": "sha256",
+        "output_directory": "output/ipa",
+        "shutdown_command": "echo 'packer' | sudo -S shutdown -P now",
+        "disk_size": 20000,
+        "format": "qcow2",
+        "accelerator": "kvm",
+        "http_directory": "kickstart",
+        "ssh_username": "root",
+        "ssh_password": "password123",
+        "ssh_timeout": "20m",
+        "vm_name": "ipa.urandom.io",
+        "net_device": "virtio-net",
+        "disk_interface": "virtio",
+        "boot_wait": "10s",
+        "boot_command": [
+          "<tab> text ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/centos7-ks.cfg<enter><wait>"
+        ]
+      }
+    ]
+  }
