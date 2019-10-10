@@ -167,7 +167,31 @@ virt-install \
     --import
 ```
 
+### MacOS 9.22 (QEMU)
 
+Download the MacOS 9.22 ISO file:  
+
+```shell
+wget -c 'https://cloudflare-ipfs.com/ipfs/QmdJhQp3u2PFJqNX626hKu44gr4JrskuqMZNiCZBaMWpX4/Apple%20Mac%20OS%209.2.2.7z'
+7z e Apple\ Mac\ OS\ 9.2.2.7z
+mv Apple\ MacOS\ 9.2.2.iso MacOS-9.22.iso
+rm -rf Apple\ Mac\ OS\ 9.2.2*
+```
+
+Run the initial Installation:  
+
+When the system boots, be sure to go into utilities and launch the Drive Utility to initialize the disk, then exit the application. If you leave Drive utility running, the installer will complain and stop. After installation shut down the machine.
+
+```shell
+qemu-img create -f qcow2 MacOS-9.22.qcow2 512M
+qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2 -cdrom MacOS-9.22.iso -boot d
+```
+
+Launch MacOS 9.22:  
+
+```shell
+qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2
+```
 
 ### Windows 10
 
