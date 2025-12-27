@@ -1,5 +1,27 @@
+# ISO files
 *.iso
+iso/
+
+# Disk images
 *.qcow2
-alpine
-packer_cache
-packer/kvm/output/*
+*.raw
+
+# Alpine netboot extracted files
+alpine/
+
+# Packer cache and output
+packer_cache/
+.packer_cache/
+packer/*/output/
+
+# Nix
+result
+.direnv/
+
+# Editor
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store

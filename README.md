@@ -1,29 +1,130 @@
-# Linux KVM/Virsh Notes
+# KVM/QEMU VM Development
 
-This is just a dumping ground for some Linux KVM notes and scripts for later reference.  
+Quick reference and tools for spinning up VMs using KVM/QEMU. Uses Nix flakes for reproducible tooling across macOS and Linux.
 
-
-## Creating guest instances
-
-
-### Debian 9
-To create a Debian 9 instance connected to virtual bridge. 
+## Quick Start
 
 ```shell
-virt-install \
-    --name debian9 \
-    --ram 1024 \
-    --disk path=./debian8.qcow2,size=9 \
-    --vcpus 1 \
-    --os-type linux \
-    --os-variant debian8 \
-    --network bridge=virbr10 \
-    --console pty,target_type=serial \
-    --graphics vnc,listen=0.0.0.0 --noautoconsole \
-    --location 'http://ftp.nl.debian.org/debian/dists/stretch/main/installer-amd64/' \
-    --extra-args 'console=ttyS0,115200n8 serial'
+# Enter development environment
+nix develop
+
+# Or with direnv (automatic)
+direnv allow
+
+# See all available commands
+just
 ```
 
+## Platform Support
+
+| Platform | Acceleration | Use Case |
+|----------|-------------|----------|
+| Linux (hal9000) | KVM | Full VM building, production images |
+| macOS | HVF / Lima | Development, testing |
+
+## Building AlmaLinux 10
+
+### On Linux (with KVM)
+
+```shell
+# Build the image
+just build-alma
+
+# Run the built image
+just run-alma
+
+# SSH into the VM (port 2222)
+just ssh-alma
+```
+
+### On macOS
+
+For full KVM acceleration, build on a remote Linux host:
+
+```shell
+# Sync and build on hal9000
+just remote-sync-build hal9000
+
+# Fetch the built image
+just remote-fetch hal9000
+```
+
+Or use Lima for quick local VMs:
+
+```shell
+# Start AlmaLinux via Lima
+just lima-start
+
+# Shell into the VM
+just lima-shell
+```
+
+## Project Structure
+
+```
+├── flake.nix                    # Nix flake with devShells
+├── justfile                     # Task runner commands
+├── packer/
+│   └── almalinux10/
+│       ├── almalinux10.pkr.hcl  # Packer HCL2 template
+│       └── http/
+│           └── ks.cfg           # Kickstart file
+├── legacy/                      # Legacy configs (CentOS 7, etc.)
+└── README.md
+```
+
+## Available Commands
+
+Run `just` to see all commands. Key ones:
+
+```
+Packer:
+  just build-alma         # Build AlmaLinux 10 image
+  just build-alma-debug   # Build with VNC console visible
+  just packer-validate    # Validate packer config
+
+QEMU (Linux):
+  just run-alma           # Run image with serial console
+  just run-alma-vnc       # Run with VNC display
+  just ssh-alma           # SSH into running VM
+
+Lima (macOS):
+  just lima-start         # Start Lima VM
+  just lima-shell         # Shell into Lima VM
+  just lima-stop          # Stop Lima VM
+
+Remote:
+  just remote-sync-build  # Sync to hal9000 and build
+  just remote-fetch       # Fetch built image from hal9000
+
+Libvirt:
+  just libvirt-import     # Import image into libvirt
+  just libvirt-list       # List all VMs
+  just libvirt-console    # Console into VM
+```
+
+## Configuration
+
+### SSH Access
+
+Default credentials (for packer builds):
+- **root**: `packer`
+- **admin**: `admin` (has passwordless sudo)
+
+### VM Resources
+
+Edit `packer/almalinux10/almalinux10.pkr.hcl`:
+- `disk_size`: Default 20G
+- `memory`: Default 2048 MB
+- `cpus`: Default 2
+
+---
+
+# Legacy Notes
+
+The following are preserved from the original project for reference.
+
+## virt-install Examples
 
 ### Debian 10
 
@@ -42,32 +143,7 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
-
-Installing Docker on Debian/Ubuntu:  
-```shell
-apt-get install -y \
-    apt-transport-https \
-    ca-certificates \
-    curl \
-    gnupg2 \
-    software-properties-common; \
-curl -fsSL https://download.docker.com/linux/debian/gpg | apt-key add -; \
-curl -fsSL https://download.docker.com/linux/ubuntu/gpg | apt-key add -; \
-add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/debian \
-   $(lsb_release -cs) \
-   stable"; \
-add-apt-repository \
-   "deb [arch=amd64] https://download.docker.com/linux/ubuntu \
-   $(lsb_release -cs) \
-   stable"; \
-apt-get update; \
-apt-get install -y docker-ce docker-ce-cli containerd.io;
-```
-
-
 ### Ubuntu 18.04
-Ubuntu 18.04 LTS with 4 vcpu and 8GB of mem
 
 ```shell
 virt-install \
@@ -86,12 +162,6 @@ virt-install \
 
 ### Alpine Linux
 
-ISO install
-
-```shell
-wget http://dl-cdn.alpinelinux.org/alpine/v3.10/releases/x86_64/alpine-virt-3.10.1-x86_64.iso
-```
-
 ```shell
 virt-install \
     --name alpine \
@@ -106,35 +176,7 @@ virt-install \
     --cdrom alpine-virt-3.10.1-x86_64.iso
 ```
 
-netboot method (not fully working)
-
-```shell
-wget http://dl-cdn.alpinelinux.org/alpine/v3.10/releases/x86_64/alpine-netboot-3.10.1-x86_64.tar.gz
-mkdir -p alpine
-tar xfv alpine-netboot-3.10.1-x86_64.tar.gz -C alpine
-```
-
- TODO - add the modloop line `modloop=url`
-
-```shell
-virt-install \
-    --name alpine \
-    --ram 512 \
-    --disk path=./alpine.qcow2,size=2 \
-    --vcpus 1 \
-    --os-type linux \
-    --os-variant alpinelinux3.8 \
-    --network default \
-    --console pty,target_type=serial \
-    --graphics vnc,listen=0.0.0.0 --noautoconsole \
-    --boot kernel=alpine/boot/vmlinuz-vanilla,initrd=alpine/boot/initramfs-vanilla,kernel_args="console=ttyS0 ip=dhcp alpine_repo=http://dl-cdn.alpinelinux.org/alpine/v3.10/main/ modules=loop,squashfs,sd-mod,usb-storage"
-```
-
-
-
 ### CentOS 7
-
-**This boot tends to hang for a few moments before launching installer. I believe this is due to low entropy**
 
 ```shell
 virt-install \
@@ -151,53 +193,7 @@ virt-install \
     --extra-args 'console=ttyS0,115200n8 serial'
 ```
 
-### CentOS 7 Import (IPA Example)
-
-```shell
-virt-install \
-    --name ipa \
-    --ram 4096 \
-    --disk path=./packer/kvm/output/ipa/ipa.urandom.io,format=qcow2 \
-    --vcpus 2 \
-    --os-type linux \
-    --os-variant centos7.0 \
-    --network default \
-    --console pty,target_type=serial \
-    --graphics none \
-    --import
-```
-
-### MacOS 9.22 (QEMU)
-
-Download the MacOS 9.22 ISO file:  
-
-```shell
-wget -c 'https://cloudflare-ipfs.com/ipfs/QmdJhQp3u2PFJqNX626hKu44gr4JrskuqMZNiCZBaMWpX4/Apple%20Mac%20OS%209.2.2.7z'
-7z e Apple\ Mac\ OS\ 9.2.2.7z
-mv Apple\ MacOS\ 9.2.2.iso MacOS-9.22.iso
-rm -rf Apple\ Mac\ OS\ 9.2.2*
-```
-
-Run the initial Installation:  
-
-When the system boots, be sure to go into utilities and launch the Drive Utility to initialize the disk, then exit the application. If you leave Drive utility running, the installer will complain and stop. After installation shut down the machine.
-
-```shell
-qemu-img create -f qcow2 MacOS-9.22.qcow2 512M
-qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2 -cdrom MacOS-9.22.iso -boot d
-```
-
-Launch MacOS 9.22:  
-
-```shell
-qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2
-```
-
 ### Windows 10
-
-install virtio-win (`yay -S virtio-win`)
-after install be sure to install / update drivers from virtio
-and install spice client from website.
 
 ```shell
 virt-install \
@@ -214,50 +210,28 @@ virt-install \
     --cdrom windows10.iso
 ```
 
-You can remove the `network` argument to use the default built in NAT.  
-
-Be sure to get a terminal after install and run the following if you want to continue using tty console. *This does not cover grub support*
+### MacOS 9.22 (QEMU PowerPC)
 
 ```shell
-chroot /target/
-systemctl enable serial-getty@ttyS0.service
+# Create disk
+qemu-img create -f qcow2 MacOS-9.22.qcow2 512M
+
+# Install from ISO
+qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2 -cdrom MacOS-9.22.iso -boot d
+
+# Run installed system
+qemu-system-ppc -M mac99 -m 512M -hda MacOS-9.22.qcow2
 ```
 
-Adding vnc to an existing domain (guest)
+## Virsh Commands
 
-```shell
-virsh edit --domain debian9
-```
-
-```XML
-<graphics type='vnc' port='-1' autoport='yes' listen='0.0.0.0'/>
-```
-
-## Create snaphosts with virsh
+### Snapshots
 
 ```shell
 virsh snapshot-create-as --domain {VM-NAME} --name "{SNAPSHOT-NAME}"
 ```
 
-## dnsmasq
-
-Running dnsmasq in the foreground
-
-```shell
-sudo dnsmasq --conf-file=/var/lib/dnsmasq/virbr10/dnsmasq.conf -d
-```
-
-## Resetting virsh default network
-
-To reset the virsh default network run the following
-
-```shell
-sudo virsh net-destroy default
-sudo virsh net-undefine default
-sudo virsh net-define --file virsh-default-network.xml
-sudo virsh net-start default
-sudo virsh net-autostart default
-```
+### Reset Default Network
 
 ```shell
 virsh net-destroy default
@@ -269,5 +243,8 @@ virsh net-autostart default
 
 ## References
 
-* [libvirt networking handbook](https://jamielinux.com/docs/libvirt-networking-handbook/)
-* [virt-install one liners](https://raymii.org/s/articles/virt-install_introduction_and_copy_paste_distro_install_commands.html)
+- [libvirt networking handbook](https://jamielinux.com/docs/libvirt-networking-handbook/)
+- [virt-install examples](https://raymii.org/s/articles/virt-install_introduction_and_copy_paste_distro_install_commands.html)
+- [AlmaLinux 10 Release Notes](https://wiki.almalinux.org/release-notes/10.1.html)
+- [Packer QEMU Builder](https://developer.hashicorp.com/packer/integrations/hashicorp/qemu)
+- [Lima VM](https://lima-vm.io/)
