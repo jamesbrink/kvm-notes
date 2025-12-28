@@ -337,46 +337,64 @@ build-nixos-arm:
     nix build .#nixos-aarch64-image --out-link nixos/output/nixos-aarch64
     @echo "Image built: nixos/output/nixos-aarch64/nixos.qcow2"
 
+# Prepare NixOS x86_64 image for running (copy from Nix store to writable location)
+prepare-nixos-x86:
+    @mkdir -p nixos/run
+    @if [ ! -f nixos/run/nixos-x86_64.qcow2 ] || [ nixos/output/nixos-x86_64/nixos.qcow2 -nt nixos/run/nixos-x86_64.qcow2 ]; then \
+        echo "Copying image from Nix store to writable location..."; \
+        cp nixos/output/nixos-x86_64/nixos.qcow2 nixos/run/nixos-x86_64.qcow2; \
+        chmod 644 nixos/run/nixos-x86_64.qcow2; \
+    fi
+
+# Prepare NixOS aarch64 image for running (copy from Nix store to writable location)
+prepare-nixos-arm:
+    @mkdir -p nixos/run
+    @if [ ! -f nixos/run/nixos-aarch64.qcow2 ] || [ nixos/output/nixos-aarch64/nixos.qcow2 -nt nixos/run/nixos-aarch64.qcow2 ]; then \
+        echo "Copying image from Nix store to writable location..."; \
+        cp nixos/output/nixos-aarch64/nixos.qcow2 nixos/run/nixos-aarch64.qcow2; \
+        chmod 644 nixos/run/nixos-aarch64.qcow2; \
+    fi
+
 # Run NixOS x86_64 image (Linux with KVM)
-run-nixos-x86:
+run-nixos-x86: prepare-nixos-x86
     qemu-system-x86_64 \
         -machine q35,accel=kvm \
         -cpu host \
         -m 2048 \
         -smp 2 \
-        -drive file=nixos/output/nixos-x86_64/nixos.qcow2,format=qcow2,if=virtio \
+        -drive file=nixos/run/nixos-x86_64.qcow2,format=qcow2,if=virtio \
         -netdev user,id=net0,hostfwd=tcp::2223-:22 \
         -device virtio-net,netdev=net0 \
         -display none \
         -serial mon:stdio
 
 # Run NixOS x86_64 with TCG emulation (macOS - slow)
-run-nixos-x86-tcg:
+run-nixos-x86-tcg: prepare-nixos-x86
     qemu-system-x86_64 \
         -machine q35,accel=tcg \
         -cpu qemu64 \
         -m 2048 \
         -smp 2 \
-        -drive file=nixos/output/nixos-x86_64/nixos.qcow2,format=qcow2,if=virtio \
+        -drive file=nixos/run/nixos-x86_64.qcow2,format=qcow2,if=virtio \
         -netdev user,id=net0,hostfwd=tcp::2223-:22 \
         -device virtio-net,netdev=net0 \
         -nographic
 
 # Run NixOS aarch64 image (macOS HVF - native speed on Apple Silicon)
-run-nixos-arm:
+run-nixos-arm: prepare-nixos-arm
     qemu-system-aarch64 \
         -machine virt,accel=hvf \
         -cpu host \
         -m 2048 \
         -smp 2 \
         -bios "{{efi_aarch64}}" \
-        -drive file=nixos/output/nixos-aarch64/nixos.qcow2,format=qcow2,if=virtio \
+        -drive file=nixos/run/nixos-aarch64.qcow2,format=qcow2,if=virtio \
         -netdev user,id=net0,hostfwd=tcp::2223-:22 \
         -device virtio-net,netdev=net0 \
         -nographic
 
 # Run NixOS aarch64 with VNC display
-run-nixos-arm-vnc:
+run-nixos-arm-vnc: prepare-nixos-arm
     @echo "Connect via VNC to localhost:5901"
     qemu-system-aarch64 \
         -machine virt,accel=hvf \
@@ -384,7 +402,7 @@ run-nixos-arm-vnc:
         -m 2048 \
         -smp 2 \
         -bios "{{efi_aarch64}}" \
-        -drive file=nixos/output/nixos-aarch64/nixos.qcow2,format=qcow2,if=virtio \
+        -drive file=nixos/run/nixos-aarch64.qcow2,format=qcow2,if=virtio \
         -netdev user,id=net0,hostfwd=tcp::2223-:22 \
         -device virtio-net,netdev=net0 \
         -device virtio-gpu-pci \
