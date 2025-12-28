@@ -1,10 +1,9 @@
 # Base NixOS configuration for VM images
 # Common settings shared between x86_64 and aarch64 builds
 #
-# This mirrors the AlmaLinux kickstart configuration for consistency:
-# - Same credentials (root/packer, admin/admin)
-# - Same SSH settings (root login enabled)
-# - Same basic package set
+# Credentials:
+# - root / password
+# - admin / admin (passwordless sudo)
 { config, lib, pkgs, ... }:
 
 {
@@ -35,10 +34,10 @@
   # Enable systemd-networkd
   systemd.network.enable = true;
 
-  # Root user - password matches AlmaLinux builds for consistency
-  # In production: Remove initialPassword and use SSH keys via cloud-init
+  # Root user
+  # In production: Remove initialPassword and use SSH keys
   users.users.root = {
-    initialPassword = "packer";
+    initialPassword = "password";
   };
 
   # Admin user - matches AlmaLinux kickstart configuration

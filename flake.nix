@@ -221,6 +221,121 @@
         self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
 
       # =========================================================================
+      # Runnable VM Apps
+      # Run with: nix run .#run-nixos-arm   (aarch64 on macOS/HVF)
+      #           nix run .#run-nixos-x86   (x86_64 on Linux/KVM)
+      # =========================================================================
+
+      # aarch64 VM runner for macOS (HVF acceleration)
+      apps.aarch64-darwin.run-nixos-arm = let
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        image = self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+        runScript = pkgs.writeShellScript "run-nixos-arm" ''
+          set -euo pipefail
+          RUNDIR="''${XDG_RUNTIME_DIR:-/tmp}/nixos-vm"
+          mkdir -p "$RUNDIR"
+
+          IMAGE="$RUNDIR/nixos-aarch64.qcow2"
+
+          # Copy image if missing or outdated
+          if [ ! -f "$IMAGE" ] || [ "${image}/nixos.qcow2" -nt "$IMAGE" ]; then
+            echo "Copying VM image to $IMAGE..."
+            cp "${image}/nixos.qcow2" "$IMAGE"
+            chmod 644 "$IMAGE"
+          fi
+
+          echo "Starting NixOS aarch64 VM (Ctrl+A X to quit)..."
+          echo "SSH: ssh -p 2223 root@localhost (password: password)"
+          exec ${pkgs.qemu}/bin/qemu-system-aarch64 \
+            -machine virt,accel=hvf \
+            -cpu host \
+            -m 2048 \
+            -smp 2 \
+            -bios "${pkgs.qemu}/share/qemu/edk2-aarch64-code.fd" \
+            -drive file="$IMAGE",format=qcow2,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+            -device virtio-net,netdev=net0 \
+            -nographic
+        '';
+      in {
+        type = "app";
+        program = "${runScript}";
+      };
+
+      # x86_64 VM runner for Linux (KVM acceleration)
+      apps.x86_64-linux.run-nixos-x86 = let
+        pkgs = nixpkgs.legacyPackages.x86_64-linux;
+        image = self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+        runScript = pkgs.writeShellScript "run-nixos-x86" ''
+          set -euo pipefail
+          RUNDIR="''${XDG_RUNTIME_DIR:-/tmp}/nixos-vm"
+          mkdir -p "$RUNDIR"
+
+          IMAGE="$RUNDIR/nixos-x86_64.qcow2"
+
+          # Copy image if missing or outdated
+          if [ ! -f "$IMAGE" ] || [ "${image}/nixos.qcow2" -nt "$IMAGE" ]; then
+            echo "Copying VM image to $IMAGE..."
+            cp "${image}/nixos.qcow2" "$IMAGE"
+            chmod 644 "$IMAGE"
+          fi
+
+          echo "Starting NixOS x86_64 VM (Ctrl+A X to quit)..."
+          echo "SSH: ssh -p 2223 root@localhost (password: password)"
+          exec ${pkgs.qemu_kvm}/bin/qemu-system-x86_64 \
+            -machine q35,accel=kvm \
+            -cpu host \
+            -m 2048 \
+            -smp 2 \
+            -drive file="$IMAGE",format=qcow2,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+            -device virtio-net,netdev=net0 \
+            -display none \
+            -serial mon:stdio
+        '';
+      in {
+        type = "app";
+        program = "${runScript}";
+      };
+
+      # aarch64 VM runner for Linux (KVM acceleration on ARM servers)
+      apps.aarch64-linux.run-nixos-arm = let
+        pkgs = nixpkgs.legacyPackages.aarch64-linux;
+        image = self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+        runScript = pkgs.writeShellScript "run-nixos-arm" ''
+          set -euo pipefail
+          RUNDIR="''${XDG_RUNTIME_DIR:-/tmp}/nixos-vm"
+          mkdir -p "$RUNDIR"
+
+          IMAGE="$RUNDIR/nixos-aarch64.qcow2"
+
+          # Copy image if missing or outdated
+          if [ ! -f "$IMAGE" ] || [ "${image}/nixos.qcow2" -nt "$IMAGE" ]; then
+            echo "Copying VM image to $IMAGE..."
+            cp "${image}/nixos.qcow2" "$IMAGE"
+            chmod 644 "$IMAGE"
+          fi
+
+          echo "Starting NixOS aarch64 VM (Ctrl+A X to quit)..."
+          echo "SSH: ssh -p 2223 root@localhost (password: password)"
+          exec ${pkgs.qemu_kvm}/bin/qemu-system-aarch64 \
+            -machine virt,accel=kvm \
+            -cpu host \
+            -m 2048 \
+            -smp 2 \
+            -bios "${pkgs.qemu}/share/qemu/edk2-aarch64-code.fd" \
+            -drive file="$IMAGE",format=qcow2,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+            -device virtio-net,netdev=net0 \
+            -display none \
+            -serial mon:stdio
+        '';
+      in {
+        type = "app";
+        program = "${runScript}";
+      };
+
+      # =========================================================================
       # NixOS Module for KVM hosts
       # =========================================================================
       nixosModules.vm-host = { config, pkgs, ... }: {

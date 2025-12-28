@@ -86,15 +86,19 @@ just build-nixos-x86               # x86_64
 ### Run NixOS VMs
 
 ```shell
-# Run with QEMU (aarch64 on Apple Silicon with HVF)
-just run-nixos-arm
+# Build and run in one command (recommended)
+nix run .#run-nixos-arm    # aarch64 on macOS (HVF)
+nix run .#run-nixos-x86    # x86_64 on Linux (KVM)
 
-# Run x86_64 (Linux with KVM, or TCG emulation on macOS)
+# Or use just commands (requires build first)
+just run-nixos-arm
 just run-nixos-x86
 just run-nixos-x86-tcg    # Software emulation
 
 # SSH into running VM (port 2223)
 just ssh-nixos
+
+# Exit QEMU: Ctrl+A then X
 ```
 
 ### NixOS Configuration
@@ -106,7 +110,7 @@ The NixOS configuration lives in `nixos/`:
 - `x86_64/` - x86_64-specific config (GRUB, ttyS0)
 - `aarch64/` - aarch64-specific config (systemd-boot, ttyAMA0)
 
-Same credentials as AlmaLinux: root/packer, admin/admin
+**NixOS credentials:** root/password, admin/admin
 
 ### Setting Up Lima as aarch64-linux Builder (macOS)
 
@@ -239,10 +243,13 @@ Utilities:
 
 ### SSH Access
 
-Default credentials (for packer builds):
-
+**AlmaLinux (Packer builds):**
 - **root**: `packer`
-- **admin**: `admin` (has passwordless sudo)
+- **admin**: `admin` (passwordless sudo)
+
+**NixOS:**
+- **root**: `password`
+- **admin**: `admin` (passwordless sudo)
 
 ### VM Resources
 
