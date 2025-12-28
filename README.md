@@ -108,6 +108,60 @@ The NixOS configuration lives in `nixos/`:
 
 Same credentials as AlmaLinux: root/packer, admin/admin
 
+### Setting Up Lima as aarch64-linux Builder (macOS)
+
+NixOS disk images cannot cross-compile - they must be built on native architecture. On macOS Apple Silicon, use Lima as an aarch64-linux builder:
+
+**1. Start Lima and install Nix:**
+
+```shell
+limactl start default
+lima bash -c "curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes"
+```
+
+**2. Enable root SSH access:**
+
+```shell
+lima sudo bash -c "mkdir -p /root/.ssh && cp ~/.ssh/authorized_keys /root/.ssh/ && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys"
+lima sudo bash -c '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && echo "trusted-users = root" >> /etc/nix/nix.conf && systemctl restart nix-daemon'
+```
+
+**3. Add SSH config** (append to `/etc/ssh/ssh_config`):
+
+```shell
+sudo tee -a /etc/ssh/ssh_config << 'EOF'
+
+# Lima builder for Nix
+Host lima-builder
+    HostName 127.0.0.1
+    Port 60022
+    User root
+    IdentityFile /Users/YOUR_USERNAME/.lima/_config/user
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+```
+
+**4. Configure Nix machines file** (`~/.config/nix/machines`):
+
+```
+ssh-ng://lima-builder aarch64-linux - 4 1 kvm,nixos-test,benchmark,big-parallel -
+```
+
+**5. Configure Nix to use builders** (`~/.config/nix/nix.conf`):
+
+```
+builders = @/Users/YOUR_USERNAME/.config/nix/machines
+builders-use-substitutes = true
+```
+
+**6. Build aarch64 images:**
+
+```shell
+limactl start default  # Ensure Lima is running
+nix build .#nixos-aarch64-image
+```
+
 ## Project Structure
 
 ```
