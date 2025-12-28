@@ -34,6 +34,9 @@
     # Disk size in MB (20GB matches AlmaLinux builds)
     diskSize = 20 * 1024;
 
+    # Memory for the build VM (default 1024 is too small for NixOS)
+    memSize = 16 * 1024;  # 16GB
+
     # Output format: qcow2 for QEMU
     format = "qcow2";
 
