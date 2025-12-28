@@ -170,6 +170,37 @@ limactl start default  # Ensure Lima is running
 nix build .#nixos-aarch64-image
 ```
 
+### Adding a Remote x86_64-linux Builder (for x86_64 images from macOS)
+
+To build x86_64 NixOS images from macOS, add a remote Linux x86_64 host as a builder:
+
+**1. Add SSH config** (append to `/etc/ssh/ssh_config`):
+
+```shell
+sudo tee -a /etc/ssh/ssh_config << 'EOF'
+
+# Remote x86_64 builder for Nix
+Host YOUR_HOST
+    User YOUR_USERNAME
+    IdentityFile ~/.ssh/id_ed25519
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+EOF
+```
+
+**2. Add to Nix machines file** (`~/.config/nix/machines`):
+
+```
+ssh-ng://YOUR_HOST x86_64-linux - 8 1 kvm,nixos-test,benchmark,big-parallel -
+```
+
+**3. Restart Nix daemon and build:**
+
+```shell
+sudo launchctl kickstart -k system/systems.determinate.nix-daemon
+nix build .#nixos-x86_64-image
+```
+
 ## Project Structure
 
 ```
