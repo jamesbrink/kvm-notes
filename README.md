@@ -119,11 +119,15 @@ limactl start default
 lima bash -c "curl -L https://nixos.org/nix/install | sh -s -- --daemon --yes"
 ```
 
-**2. Enable root SSH access:**
+**2. Enable root SSH access and configure Nix:**
 
 ```shell
 lima sudo bash -c "mkdir -p /root/.ssh && cp ~/.ssh/authorized_keys /root/.ssh/ && chmod 700 /root/.ssh && chmod 600 /root/.ssh/authorized_keys"
-lima sudo bash -c '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && echo "trusted-users = root" >> /etc/nix/nix.conf && systemctl restart nix-daemon'
+lima sudo bash -c '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh && cat >> /etc/nix/nix.conf << EOF
+trusted-users = root
+system-features = kvm nixos-test benchmark big-parallel uid-range
+EOF
+systemctl restart nix-daemon'
 ```
 
 **3. Add SSH config** (append to `/etc/ssh/ssh_config`):
