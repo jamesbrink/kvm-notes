@@ -107,25 +107,26 @@ source "qemu" "almalinux10-aarch64" {
   net_device = "virtio-net"
 
   # Boot configuration - kickstart via OEMDRV CD
-  # NOTE: VNC boot commands don't work reliably on aarch64 QEMU/HVF on macOS
   # The OEMDRV label allows Anaconda to auto-detect the kickstart file
-  # For automated builds, use KVM on Linux ARM or use Lima instead
   http_directory = local.http_directory
   cd_files       = ["${local.http_directory}/ks.cfg"]
   cd_label       = "OEMDRV"
 
-  # Boot wait for GRUB menu to appear, then attempt to edit
-  # If this doesn't work, connect via VNC and manually:
-  # 1. Press UP to select "Install AlmaLinux"
-  # 2. Press 'e' to edit
-  # 3. Add: inst.cmdline inst.ks=hd:LABEL=OEMDRV:/ks.cfg console=ttyAMA0
-  # 4. Press Ctrl+X to boot
-  boot_wait = "20s"
+  # Boot wait for GRUB menu to appear, then edit kernel line
+  # Longer waits needed for aarch64 UEFI boot
+  boot_wait = "30s"
   boot_command = [
-    "<up><wait2s>",
-    "e<wait3s>",
-    "<down><down><down><end><wait>",
+    # Select first entry and edit
+    "<up><wait3s>",
+    "e<wait5s>",
+    # Navigate to end of linux line (3 lines down from top in GRUB edit mode)
+    "<down><wait>",
+    "<down><wait>",
+    "<down><wait>",
+    "<end><wait>",
+    # Append kickstart parameters
     " inst.cmdline inst.ks=hd:LABEL=OEMDRV:/ks.cfg console=ttyAMA0<wait2s>",
+    # Boot with Ctrl+X
     "<leftCtrlOn>x<leftCtrlOff>"
   ]
 
@@ -153,6 +154,9 @@ source "qemu" "almalinux10-aarch64" {
     ["-boot", "strict=off"],
     # UEFI firmware using -bios (simpler than pflash for aarch64)
     ["-bios", "${var.efi_firmware}"],
+    # Disable QEMU monitor to prevent it from intercepting boot keystrokes
+    # See: https://github.com/hashicorp/packer-plugin-qemu/issues/28
+    ["-monitor", "none"],
   ]
 }
 

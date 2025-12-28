@@ -120,16 +120,19 @@ Utilities:
 ### SSH Access
 
 Default credentials (for packer builds):
+
 - **root**: `packer`
 - **admin**: `admin` (has passwordless sudo)
 
 ### VM Resources
 
 Edit the packer template for your architecture:
+
 - `packer/almalinux10/x86_64/almalinux10.pkr.hcl`
 - `packer/almalinux10/aarch64/almalinux10.pkr.hcl`
 
 Default settings:
+
 - `disk_size`: 20G
 - `memory`: 2048 MB
 - `cpus`: 2

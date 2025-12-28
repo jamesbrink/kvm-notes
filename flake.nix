@@ -17,6 +17,11 @@
         isDarwin = pkgs.stdenv.isDarwin;
         isLinux = pkgs.stdenv.isLinux;
 
+        # Wrapper for VNC viewer on macOS (binary is inside app bundle)
+        vncviewerWrapper = pkgs.writeShellScriptBin "vncviewer" ''
+          exec "${pkgs.realvnc-vnc-viewer}/Applications/VNC Viewer.app/Contents/MacOS/vncviewer" "$@"
+        '';
+
         # Common packages for all platforms
         commonPackages = with pkgs; [
           # Task runner
@@ -52,11 +57,14 @@
           # Lima - Linux VMs on macOS with file sharing & port forwarding
           lima
 
+          # VNC viewer for debugging packer builds (unfree, wrapped for CLI access)
+          realvnc-vnc-viewer
+
           # Utilities
           coreutils
           gnused
           gawk
-        ];
+        ] ++ [ vncviewerWrapper ];
 
         # Linux-specific packages (for hal9000 or any Linux host)
         linuxPackages = with pkgs; [
@@ -107,24 +115,36 @@
                 ;;
             esac
 
-            echo "🖥️  KVM/QEMU Development Environment"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            ${if isDarwin then ''
-              echo "Platform: macOS (QEMU + HVF, Lima available)"
+            # Menu function to display help
+            menu() {
+              echo "🖥️  KVM/QEMU Development Environment"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              ${if isDarwin then ''
+                echo "Platform: macOS (QEMU + HVF, Lima available)"
+                echo ""
+                echo "Quick start:"
+                echo "  just build-alma-arm  # Build AlmaLinux 10 ARM64 image"
+                echo "  just run-alma-arm    # Run the built image"
+                echo "  just ssh-alma        # SSH into running VM"
+                echo ""
+                echo "Lima (recommended for macOS):"
+                echo "  just lima-start      # Start AlmaLinux 10 VM"
+                echo "  just lima-shell      # Shell into Lima VM"
+              '' else ''
+                echo "Platform: Linux (QEMU + KVM)"
+                echo ""
+                echo "Quick start:"
+                echo "  just build-alma      # Build AlmaLinux 10 image"
+                echo "  just run-alma        # Run the built image"
+                echo "  just ssh-alma        # SSH into running VM"
+              ''}
               echo ""
-              echo "Quick start:"
-              echo "  just build-alma-arm  # Build AlmaLinux 10 ARM64 image"
-              echo "  just run-alma-arm    # Run the built image"
-              echo "  just ssh-alma        # SSH into running VM"
-            '' else ''
-              echo "Platform: Linux (QEMU + KVM)"
-              echo ""
-              echo "Quick start:"
-              echo "  just build-alma      # Build AlmaLinux 10 image"
-              echo "  just run-alma        # Run the built image"
-              echo "  just ssh-alma        # SSH into running VM"
-            ''}
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+              echo "Run 'just' for all commands, 'menu' to show this again"
+              echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            }
+
+            # Show menu on shell entry
+            menu
           '';
 
           # Environment variables

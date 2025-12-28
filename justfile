@@ -250,6 +250,33 @@ image-info-arm:
     qemu-img info packer/almalinux10/output/almalinux10-aarch64/almalinux10-aarch64
 
 # ============================================================================
+# VNC Commands (for debugging packer builds)
+# ============================================================================
+
+# Open VNC viewer to packer VM (password: password)
+vnc port="5900":
+    @echo "Connecting to VNC on port {{port}}... (Password: password)"
+    vncviewer "localhost:{{port}}"
+
+# Find QEMU VNC port and connect
+vnc-find:
+    #!/usr/bin/env bash
+    set -eu
+    port=$(lsof -i :5900-5999 2>/dev/null | grep qemu | grep LISTEN | awk '{print $9}' | cut -d: -f2 | head -1)
+    if [ -n "$port" ]; then
+        echo "Found QEMU VNC on port $port (Password: password)"
+        vncviewer "localhost:$port"
+    else
+        echo "No QEMU VNC ports found"
+        exit 1
+    fi
+
+# List active QEMU VNC ports
+vnc-list:
+    @echo "Active QEMU VNC ports:"
+    @lsof -i :5900-5999 2>/dev/null | grep qemu | grep LISTEN || echo "No QEMU VNC ports found"
+
+# ============================================================================
 # Libvirt Commands (Linux)
 # ============================================================================
 
