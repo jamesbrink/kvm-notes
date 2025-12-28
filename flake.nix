@@ -262,6 +262,41 @@
         program = "${runScript}";
       };
 
+      # x86_64 VM runner for macOS (TCG emulation - slow)
+      apps.aarch64-darwin.run-nixos-x86 = let
+        pkgs = nixpkgs.legacyPackages.aarch64-darwin;
+        image = self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+        runScript = pkgs.writeShellScript "run-nixos-x86" ''
+          set -euo pipefail
+          RUNDIR="''${TMPDIR:-/tmp}/nixos-vm"
+          mkdir -p "$RUNDIR"
+
+          IMAGE="$RUNDIR/nixos-x86_64.qcow2"
+
+          # Copy image if missing or outdated
+          if [ ! -f "$IMAGE" ] || [ "${image}/nixos.qcow2" -nt "$IMAGE" ]; then
+            echo "Copying VM image to $IMAGE..."
+            cp "${image}/nixos.qcow2" "$IMAGE"
+            chmod 644 "$IMAGE"
+          fi
+
+          echo "Starting NixOS x86_64 VM with TCG emulation (SLOW - Ctrl+A X to quit)..."
+          echo "SSH: ssh -p 2223 root@localhost (password: password)"
+          exec ${pkgs.qemu}/bin/qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -cpu qemu64 \
+            -m 2048 \
+            -smp 2 \
+            -drive file="$IMAGE",format=qcow2,if=virtio \
+            -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+            -device virtio-net,netdev=net0 \
+            -nographic
+        '';
+      in {
+        type = "app";
+        program = "${runScript}";
+      };
+
       # x86_64 VM runner for Linux (KVM acceleration)
       apps.x86_64-linux.run-nixos-x86 = let
         pkgs = nixpkgs.legacyPackages.x86_64-linux;
