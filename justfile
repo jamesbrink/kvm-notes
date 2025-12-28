@@ -1,40 +1,61 @@
 # KVM/QEMU VM Development Justfile
 # Run `just` to see all available commands
 
+# Use bash for shell commands
+set shell := ["bash", "-cu"]
+
+# EFI firmware path - auto-detect from QEMU location (works with nix)
+efi_aarch64 := env_var_or_default("QEMU_EFI_AARCH64", `dirname $(which qemu-system-aarch64)`+ "/../share/qemu/edk2-aarch64-code.fd")
+
 # Default recipe - show help
 default:
     @just --list
 
 # ============================================================================
-# Packer Commands
+# Formatting & Linting
 # ============================================================================
 
-# Initialize packer plugins (run once)
-packer-init:
-    cd packer/almalinux10 && packer init .
+# Format all HCL files
+fmt:
+    packer fmt -recursive packer/
 
-# Validate packer configuration
-packer-validate:
-    cd packer/almalinux10 && packer validate .
+# Check HCL formatting (no changes)
+fmt-check:
+    packer fmt -check -recursive packer/
 
-# Build AlmaLinux 10 image (requires KVM - run on Linux)
-build-alma: packer-init
-    cd packer/almalinux10 && packer build -force .
-
-# Build AlmaLinux 10 with visible console (not headless)
-build-alma-debug: packer-init
-    cd packer/almalinux10 && packer build -force -var headless=false .
-
-# Build on macOS using software emulation (slow, for testing only)
-build-alma-tcg: packer-init
-    cd packer/almalinux10 && packer build -force -var accelerator=tcg -var headless=false .
+# Validate all packer configs
+lint:
+    @echo "Validating x86_64..."
+    cd packer/almalinux10/x86_64 && packer validate .
+    @echo "Validating aarch64..."
+    cd packer/almalinux10/aarch64 && packer validate -var efi_firmware="{{efi_aarch64}}" .
 
 # ============================================================================
-# QEMU Direct Commands (Linux with KVM)
+# AlmaLinux 10 x86_64 (for Linux KVM or remote builds)
 # ============================================================================
 
-# Run the built AlmaLinux 10 image
-run-alma:
+# Initialize packer plugins for x86_64
+packer-init-x86:
+    cd packer/almalinux10/x86_64 && packer init .
+
+# Validate x86_64 packer configuration
+packer-validate-x86:
+    cd packer/almalinux10/x86_64 && packer validate .
+
+# Build AlmaLinux 10 x86_64 (requires KVM - run on Linux)
+build-alma-x86: packer-init-x86
+    cd packer/almalinux10/x86_64 && packer build -force .
+
+# Build x86_64 with visible console
+build-alma-x86-debug: packer-init-x86
+    cd packer/almalinux10/x86_64 && packer build -force -var headless=false .
+
+# Build x86_64 with TCG (software emulation - VERY slow)
+build-alma-x86-tcg: packer-init-x86
+    cd packer/almalinux10/x86_64 && packer build -force -var accelerator=tcg -var cpu_type=qemu64 -var headless=false .
+
+# Run x86_64 image (Linux with KVM)
+run-alma-x86:
     qemu-system-x86_64 \
         -machine q35,accel=kvm \
         -cpu host \
@@ -46,18 +67,75 @@ run-alma:
         -display none \
         -serial mon:stdio
 
-# Run with VNC display
-run-alma-vnc:
-    @echo "Connect via VNC to localhost:5900"
+# Run x86_64 with TCG emulation (macOS - slow)
+run-alma-x86-tcg:
     qemu-system-x86_64 \
-        -machine q35,accel=kvm \
-        -cpu host \
+        -machine q35,accel=tcg \
+        -cpu qemu64 \
         -m 2048 \
         -smp 2 \
         -drive file=packer/almalinux10/output/almalinux10/almalinux10,format=qcow2,if=virtio \
         -netdev user,id=net0,hostfwd=tcp::2222-:22 \
         -device virtio-net,netdev=net0 \
+        -nographic
+
+# ============================================================================
+# AlmaLinux 10 aarch64 (native on Apple Silicon with HVF)
+# ============================================================================
+
+# Initialize packer plugins for aarch64
+packer-init-arm:
+    cd packer/almalinux10/aarch64 && packer init .
+
+# Validate aarch64 packer configuration
+packer-validate-arm:
+    cd packer/almalinux10/aarch64 && packer validate -var efi_firmware="{{efi_aarch64}}" .
+
+# Build AlmaLinux 10 aarch64 (macOS Apple Silicon with HVF)
+build-alma-arm: packer-init-arm
+    cd packer/almalinux10/aarch64 && packer build -force -var efi_firmware="{{efi_aarch64}}" .
+
+# Build aarch64 with visible console
+build-alma-arm-debug: packer-init-arm
+    cd packer/almalinux10/aarch64 && packer build -force -var efi_firmware="{{efi_aarch64}}" -var headless=false .
+
+# Run aarch64 image (macOS with HVF - native speed)
+run-alma-arm:
+    qemu-system-aarch64 \
+        -machine virt,accel=hvf \
+        -cpu host \
+        -m 2048 \
+        -smp 2 \
+        -bios "{{efi_aarch64}}" \
+        -drive file=packer/almalinux10/output/almalinux10-aarch64/almalinux10-aarch64,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+        -device virtio-net,netdev=net0 \
+        -nographic
+
+# Run aarch64 with VNC display
+run-alma-arm-vnc:
+    @echo "Connect via VNC to localhost:5900"
+    qemu-system-aarch64 \
+        -machine virt,accel=hvf \
+        -cpu host \
+        -m 2048 \
+        -smp 2 \
+        -bios "{{efi_aarch64}}" \
+        -drive file=packer/almalinux10/output/almalinux10-aarch64/almalinux10-aarch64,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2222-:22 \
+        -device virtio-net,netdev=net0 \
+        -device virtio-gpu-pci \
         -vnc :0
+
+# ============================================================================
+# Convenience Aliases (auto-detect or default)
+# ============================================================================
+
+# Build AlmaLinux (defaults to x86_64 for remote/Linux builds)
+build-alma: build-alma-x86
+
+# Run AlmaLinux (defaults to x86_64)
+run-alma: run-alma-x86
 
 # SSH into running VM (assumes port 2222 forwarding)
 ssh-alma:
@@ -68,7 +146,7 @@ ssh-alma-admin:
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 admin@localhost
 
 # ============================================================================
-# Lima Commands (macOS)
+# Lima Commands (macOS - easiest way to get a Linux VM)
 # ============================================================================
 
 # Start a Lima VM with AlmaLinux (uses cloud image)
@@ -92,38 +170,41 @@ lima-list:
     limactl list
 
 # ============================================================================
-# Remote Build (via hal9000)
+# Remote Build (via hal9000 or other Linux host)
 # ============================================================================
 
-# Build on remote Linux host with KVM
-remote-build host="hal9000":
-    ssh {{host}} "cd $(pwd) && nix develop --command just build-alma"
-
-# Sync project to remote and build
+# Sync project to remote and build x86_64
 remote-sync-build host="hal9000":
-    rsync -avz --exclude='.git' --exclude='packer_cache' --exclude='output' . {{host}}:~/kvm-notes/
-    ssh {{host}} "cd ~/kvm-notes && nix develop --command just build-alma"
+    rsync -avz --exclude='.git' --exclude='.packer_cache' --exclude='output' . {{host}}:~/kvm-notes/
+    ssh {{host}} "cd ~/kvm-notes && nix develop --command just build-alma-x86"
 
-# Fetch built image from remote
-remote-fetch host="hal9000":
+# Fetch built x86_64 image from remote
+remote-fetch-x86 host="hal9000":
     mkdir -p packer/almalinux10/output/almalinux10
     rsync -avz {{host}}:~/kvm-notes/packer/almalinux10/output/almalinux10/ packer/almalinux10/output/almalinux10/
+
+# Fetch built aarch64 image from remote (if building on ARM Linux)
+remote-fetch-arm host="hal9000":
+    mkdir -p packer/almalinux10/output/almalinux10-aarch64
+    rsync -avz {{host}}:~/kvm-notes/packer/almalinux10/output/almalinux10-aarch64/ packer/almalinux10/output/almalinux10-aarch64/
 
 # ============================================================================
 # Utilities
 # ============================================================================
 
-# Download AlmaLinux boot ISO
-iso-download:
+# Download AlmaLinux x86_64 boot ISO
+iso-download-x86:
     mkdir -p iso
     curl -L -o iso/AlmaLinux-10.1-x86_64-boot.iso \
         https://repo.almalinux.org/almalinux/10.1/isos/x86_64/AlmaLinux-10.1-x86_64-boot.iso
     @echo "ISO downloaded to iso/AlmaLinux-10.1-x86_64-boot.iso"
 
-# Verify ISO checksum
-iso-verify:
-    @echo "Expected: 68a9e14fa252c817d11a3c80306e5a21b2db37c21173fd3f52a9eb6ced25a4a0"
-    @echo "Actual:   $(sha256sum iso/AlmaLinux-10.1-x86_64-boot.iso | cut -d' ' -f1)"
+# Download AlmaLinux aarch64 boot ISO
+iso-download-arm:
+    mkdir -p iso
+    curl -L -o iso/AlmaLinux-10.1-aarch64-boot.iso \
+        https://repo.almalinux.org/almalinux/10.1/isos/aarch64/AlmaLinux-10.1-aarch64-boot.iso
+    @echo "ISO downloaded to iso/AlmaLinux-10.1-aarch64-boot.iso"
 
 # Clean all build artifacts
 clean:
@@ -135,21 +216,19 @@ clean:
 clean-iso:
     rm -rf iso
 
-# Show image info
-image-info:
+# Show x86_64 image info
+image-info-x86:
     qemu-img info packer/almalinux10/output/almalinux10/almalinux10
 
-# Convert image to raw format
-image-convert-raw:
-    qemu-img convert -f qcow2 -O raw \
-        packer/almalinux10/output/almalinux10/almalinux10 \
-        packer/almalinux10/output/almalinux10/almalinux10.raw
+# Show aarch64 image info
+image-info-arm:
+    qemu-img info packer/almalinux10/output/almalinux10-aarch64/almalinux10-aarch64
 
 # ============================================================================
 # Libvirt Commands (Linux)
 # ============================================================================
 
-# Import image into libvirt
+# Import x86_64 image into libvirt
 libvirt-import:
     virt-install \
         --name almalinux10 \

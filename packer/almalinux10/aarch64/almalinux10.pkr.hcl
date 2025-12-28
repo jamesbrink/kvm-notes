@@ -1,5 +1,5 @@
-# AlmaLinux 10 Packer Template
-# Modern HCL2 format for building KVM/QEMU images
+# AlmaLinux 10 aarch64 Packer Template
+# For building ARM64 images (native on Apple Silicon with HVF)
 
 packer {
   required_version = ">= 1.9.0"
@@ -15,19 +15,19 @@ packer {
 # Variables
 variable "vm_name" {
   type        = string
-  default     = "almalinux10"
+  default     = "almalinux10-aarch64"
   description = "Name of the VM and output image"
 }
 
 variable "iso_url" {
   type        = string
-  default     = "https://repo.almalinux.org/almalinux/10.1/isos/x86_64/AlmaLinux-10.1-x86_64-boot.iso"
-  description = "URL to the AlmaLinux boot ISO"
+  default     = "https://repo.almalinux.org/almalinux/10.1/isos/aarch64/AlmaLinux-10.1-aarch64-boot.iso"
+  description = "URL to the AlmaLinux aarch64 boot ISO"
 }
 
 variable "iso_checksum" {
   type        = string
-  default     = "sha256:68a9e14fa252c817d11a3c80306e5a21b2db37c21173fd3f52a9eb6ced25a4a0"
+  default     = "sha256:76cdd787aeb9c786e589c0ebb625ca50fa9864c54293330be29b258f10e0b6b8"
   description = "SHA256 checksum of the ISO"
 }
 
@@ -70,18 +70,23 @@ variable "headless" {
 
 variable "accelerator" {
   type        = string
-  default     = "kvm"
-  description = "QEMU accelerator (kvm, hvf, tcg)"
+  default     = "hvf"
+  description = "QEMU accelerator (hvf for macOS, kvm for Linux, tcg for software)"
+}
+
+variable "efi_firmware" {
+  type        = string
+  description = "Path to AAVMF/UEFI firmware (set via QEMU_EFI_AARCH64 env var in nix shell)"
 }
 
 # Local variables
 locals {
-  output_directory = "output/${var.vm_name}"
+  output_directory = "${path.root}/../output/${var.vm_name}"
   http_directory   = "${path.root}/http"
 }
 
-# QEMU Builder
-source "qemu" "almalinux10" {
+# QEMU Builder for aarch64
+source "qemu" "almalinux10-aarch64" {
   vm_name          = var.vm_name
   iso_url          = var.iso_url
   iso_checksum     = var.iso_checksum
@@ -101,14 +106,26 @@ source "qemu" "almalinux10" {
   # Network configuration
   net_device = "virtio-net"
 
-  # Boot configuration - kickstart via HTTP
+  # Boot configuration - kickstart via OEMDRV CD
+  # NOTE: VNC boot commands don't work reliably on aarch64 QEMU/HVF on macOS
+  # The OEMDRV label allows Anaconda to auto-detect the kickstart file
+  # For automated builds, use KVM on Linux ARM or use Lima instead
   http_directory = local.http_directory
-  boot_wait      = "5s"
+  cd_files       = ["${local.http_directory}/ks.cfg"]
+  cd_label       = "OEMDRV"
+
+  # Boot wait for GRUB menu to appear, then attempt to edit
+  # If this doesn't work, connect via VNC and manually:
+  # 1. Press UP to select "Install AlmaLinux"
+  # 2. Press 'e' to edit
+  # 3. Add: inst.cmdline inst.ks=hd:LABEL=OEMDRV:/ks.cfg console=ttyAMA0
+  # 4. Press Ctrl+X to boot
+  boot_wait = "20s"
   boot_command = [
-    "<up><wait>",
-    "e<wait>",
-    "<down><down><end>",
-    " inst.text inst.ks=http://{{ .HTTPIP }}:{{ .HTTPPort }}/ks.cfg",
+    "<up><wait2s>",
+    "e<wait3s>",
+    "<down><down><down><end><wait>",
+    " inst.cmdline inst.ks=hd:LABEL=OEMDRV:/ks.cfg console=ttyAMA0<wait2s>",
     "<leftCtrlOn>x<leftCtrlOff>"
   ]
 
@@ -121,18 +138,28 @@ source "qemu" "almalinux10" {
   # Display
   headless         = var.headless
   vnc_bind_address = "0.0.0.0"
+  vnc_password     = "password"
 
-  # QEMU-specific settings
+  # QEMU binary for aarch64
+  qemu_binary = "qemu-system-aarch64"
+
+  # Machine type for ARM
+  machine_type = "virt"
+
+  # QEMU-specific settings for aarch64
   qemuargs = [
     ["-cpu", "host"],
-    ["-machine", "q35,accel=${var.accelerator}"],
+    # aarch64 doesn't support "once=d", use strict=off
+    ["-boot", "strict=off"],
+    # UEFI firmware using -bios (simpler than pflash for aarch64)
+    ["-bios", "${var.efi_firmware}"],
   ]
 }
 
 # Build definition
 build {
-  name    = "almalinux10"
-  sources = ["source.qemu.almalinux10"]
+  name    = "almalinux10-aarch64"
+  sources = ["source.qemu.almalinux10-aarch64"]
 
   # Basic provisioner - install cloud-init for future flexibility
   provisioner "shell" {
