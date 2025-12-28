@@ -339,20 +339,32 @@ build-nixos-arm:
 
 # Prepare NixOS x86_64 image for running (copy from Nix store to writable location)
 prepare-nixos-x86:
-    @mkdir -p nixos/run
-    @if [ ! -f nixos/run/nixos-x86_64.qcow2 ] || [ nixos/output/nixos-x86_64/nixos.qcow2 -nt nixos/run/nixos-x86_64.qcow2 ]; then \
-        echo "Copying image from Nix store to writable location..."; \
-        cp nixos/output/nixos-x86_64/nixos.qcow2 nixos/run/nixos-x86_64.qcow2; \
-        chmod 644 nixos/run/nixos-x86_64.qcow2; \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p nixos/run
+    if [ ! -f nixos/run/nixos-x86_64.qcow2 ] || [ nixos/output/nixos-x86_64/nixos.qcow2 -nt nixos/run/nixos-x86_64.qcow2 ]; then
+        echo "Copying image from Nix store to writable location..."
+        cp nixos/output/nixos-x86_64/nixos.qcow2 nixos/run/nixos-x86_64.qcow2
+        chmod 644 nixos/run/nixos-x86_64.qcow2
+        # Fix ownership if copied as root (common with Nix daemon builds)
+        if [ "$(stat -f %Su nixos/run/nixos-x86_64.qcow2 2>/dev/null || stat -c %U nixos/run/nixos-x86_64.qcow2 2>/dev/null)" = "root" ]; then
+            sudo chown "$(whoami)" nixos/run/nixos-x86_64.qcow2
+        fi
     fi
 
 # Prepare NixOS aarch64 image for running (copy from Nix store to writable location)
 prepare-nixos-arm:
-    @mkdir -p nixos/run
-    @if [ ! -f nixos/run/nixos-aarch64.qcow2 ] || [ nixos/output/nixos-aarch64/nixos.qcow2 -nt nixos/run/nixos-aarch64.qcow2 ]; then \
-        echo "Copying image from Nix store to writable location..."; \
-        cp nixos/output/nixos-aarch64/nixos.qcow2 nixos/run/nixos-aarch64.qcow2; \
-        chmod 644 nixos/run/nixos-aarch64.qcow2; \
+    #!/usr/bin/env bash
+    set -euo pipefail
+    mkdir -p nixos/run
+    if [ ! -f nixos/run/nixos-aarch64.qcow2 ] || [ nixos/output/nixos-aarch64/nixos.qcow2 -nt nixos/run/nixos-aarch64.qcow2 ]; then
+        echo "Copying image from Nix store to writable location..."
+        cp nixos/output/nixos-aarch64/nixos.qcow2 nixos/run/nixos-aarch64.qcow2
+        chmod 644 nixos/run/nixos-aarch64.qcow2
+        # Fix ownership if copied as root (common with Nix daemon builds)
+        if [ "$(stat -f %Su nixos/run/nixos-aarch64.qcow2 2>/dev/null || stat -c %U nixos/run/nixos-aarch64.qcow2 2>/dev/null)" = "root" ]; then
+            sudo chown "$(whoami)" nixos/run/nixos-aarch64.qcow2
+        fi
     fi
 
 # Run NixOS x86_64 image (Linux with KVM)
