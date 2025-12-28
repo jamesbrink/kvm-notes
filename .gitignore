@@ -18,6 +18,9 @@ packer/*/output/
 result
 .direnv/
 
+# NixOS VM outputs
+nixos/output/
+
 # Editor
 .idea/
 *.swp

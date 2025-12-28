@@ -1,6 +1,10 @@
 # KVM/QEMU VM Development
 
-Quick reference and tools for spinning up VMs using KVM/QEMU. Uses Nix flakes for reproducible tooling across macOS and Linux.
+Quick reference and tools for spinning up VMs using KVM/QEMU. Supports building VM images via:
+- **Packer** - AlmaLinux 10 with kickstart automation
+- **NixOS** - Declarative NixOS VMs using `make-disk-image.nix`
+
+Uses Nix flakes for reproducible tooling across macOS and Linux.
 
 ## Quick Start
 
@@ -63,10 +67,51 @@ just lima-start
 just lima-shell
 ```
 
+## Building NixOS VMs
+
+NixOS images are built using Nix's native `make-disk-image.nix`. The configuration is fully declarative.
+
+### Build Commands
+
+```shell
+# Build NixOS image (uses remote builder automatically from macOS)
+nix build .#nixos-aarch64-image    # ARM64
+nix build .#nixos-x86_64-image     # x86_64
+
+# Or use just commands
+just build-nixos-arm               # ARM64
+just build-nixos-x86               # x86_64
+```
+
+### Run NixOS VMs
+
+```shell
+# Run with QEMU (aarch64 on Apple Silicon with HVF)
+just run-nixos-arm
+
+# Run x86_64 (Linux with KVM, or TCG emulation on macOS)
+just run-nixos-x86
+just run-nixos-x86-tcg    # Software emulation
+
+# SSH into running VM (port 2223)
+just ssh-nixos
+```
+
+### NixOS Configuration
+
+The NixOS configuration lives in `nixos/`:
+- `modules/base.nix` - Users, SSH, packages
+- `modules/cloud-init.nix` - Cloud-init support
+- `modules/qemu-guest.nix` - Virtio drivers
+- `x86_64/` - x86_64-specific config (GRUB, ttyS0)
+- `aarch64/` - aarch64-specific config (systemd-boot, ttyAMA0)
+
+Same credentials as AlmaLinux: root/packer, admin/admin
+
 ## Project Structure
 
 ```
-├── flake.nix                           # Nix flake with devShells
+├── flake.nix                           # Nix flake with devShells & nixosConfigurations
 ├── justfile                            # Task runner commands
 ├── packer/
 │   └── almalinux10/
@@ -77,7 +122,18 @@ just lima-shell
 │       │   ├── almalinux10.pkr.hcl
 │       │   └── http/ks.cfg
 │       └── output/                     # Built images (gitignored)
-├── legacy/                             # Legacy configs (CentOS 7, etc.)
+├── nixos/
+│   ├── modules/                        # Shared NixOS modules
+│   │   ├── base.nix                    # Users, SSH, packages
+│   │   ├── cloud-init.nix              # Cloud-init configuration
+│   │   └── qemu-guest.nix              # Virtio drivers, guest agent
+│   ├── x86_64/                         # x86_64 NixOS config
+│   │   ├── default.nix                 # Main config + make-disk-image
+│   │   └── hardware.nix                # GRUB, ttyS0
+│   ├── aarch64/                        # aarch64 NixOS config
+│   │   ├── default.nix                 # Main config + make-disk-image
+│   │   └── hardware.nix                # systemd-boot, ttyAMA0
+│   └── output/                         # Built images (gitignored)
 └── README.md
 ```
 
@@ -86,19 +142,25 @@ just lima-shell
 Run `just` to see all commands. Key ones:
 
 ```
-Packer (x86_64 - Linux):
+AlmaLinux - Packer (x86_64):
   just build-alma-x86     # Build x86_64 image (requires KVM)
   just run-alma-x86       # Run x86_64 image
 
-Packer (aarch64 - Linux ARM or macOS):
+AlmaLinux - Packer (aarch64):
   just build-alma-arm     # Build ARM64 image
   just run-alma-arm       # Run ARM64 image
 
-Lima (macOS - RECOMMENDED for local VMs):
+NixOS (builds via remote builder from macOS):
+  just build-nixos-x86    # Build x86_64 NixOS image
+  just build-nixos-arm    # Build aarch64 NixOS image
+  just run-nixos-x86      # Run x86_64 image (KVM)
+  just run-nixos-arm      # Run aarch64 image (HVF)
+  just ssh-nixos          # SSH into NixOS VM (port 2223)
+
+Lima (macOS - RECOMMENDED for quick local VMs):
   just lima-start         # Start AlmaLinux 10 VM
   just lima-shell         # Shell into Lima VM
   just lima-stop          # Stop Lima VM
-  just lima-templates     # List available templates
 
 Remote Build:
   just remote-sync-build  # Sync to hal9000 and build x86_64
@@ -112,7 +174,7 @@ Libvirt (Linux):
 Utilities:
   just fmt                # Format HCL files
   just lint               # Validate packer configs
-  just ssh-alma           # SSH into running VM (port 2222)
+  just ssh-alma           # SSH into AlmaLinux VM (port 2222)
 ```
 
 ## Configuration

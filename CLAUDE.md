@@ -4,7 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-KVM/QEMU VM development tooling for building AlmaLinux 10 images using Packer. Uses Nix flakes for reproducible cross-platform development (macOS + Linux).
+KVM/QEMU VM development tooling for building VM images. Supports:
+- **AlmaLinux 10** via Packer with kickstart
+- **NixOS** via native Nix `make-disk-image.nix`
+
+Uses Nix flakes for reproducible cross-platform development (macOS + Linux).
 
 ## Common Commands
 
@@ -48,6 +52,25 @@ just remote-sync-build hal9000   # Sync and build on remote
 just remote-fetch-x86 hal9000    # Fetch built image
 ```
 
+### NixOS VM Images
+
+NixOS VMs are built using Nix's native `make-disk-image.nix`. **Important:** Disk images cannot cross-compile - must build on native architecture.
+
+**On Linux (native builds):**
+```shell
+just build-nixos-x86     # Build x86_64 image (on x86_64-linux)
+just build-nixos-arm     # Build aarch64 image (on aarch64-linux)
+just run-nixos-x86       # Run x86_64 image (KVM)
+just ssh-nixos           # SSH into running NixOS VM (port 2223)
+```
+
+**On macOS (remote builds):**
+```shell
+just remote-build-nixos-x86 hal9000   # Build on remote Linux host
+just remote-fetch-nixos-x86 hal9000   # Fetch built image
+just run-nixos-arm                    # Run aarch64 image with HVF
+```
+
 ## Architecture
 
 ### Platform-Specific Acceleration
@@ -58,7 +81,9 @@ just remote-fetch-x86 hal9000    # Fetch built image
 ### Key Directories
 - `packer/almalinux10/x86_64/` - x86_64 packer config (Linux KVM)
 - `packer/almalinux10/aarch64/` - ARM64 packer config (HVF/KVM)
-- Each arch has `almalinux10.pkr.hcl` (Packer HCL2) and `http/ks.cfg` (kickstart)
+- `nixos/x86_64/` - x86_64 NixOS configuration
+- `nixos/aarch64/` - aarch64 NixOS configuration
+- `nixos/modules/` - Shared NixOS modules (base, cloud-init, qemu-guest)
 
 ### Kickstart Files
 The `http/ks.cfg` files use `cmdline` mode for fully automated installs. Key settings:
@@ -82,11 +107,19 @@ VNC password: `password`
 
 The flake provides:
 - `devShells.default` - Platform-specific tools (QEMU, Lima on macOS; libvirt on Linux)
-- `QEMU_EFI_AARCH64` env var - Auto-set to UEFI firmware path on macOS
+- `nixosConfigurations.nixos-x86_64` - NixOS x86_64 VM configuration
+- `nixosConfigurations.nixos-aarch64` - NixOS aarch64 VM configuration
+- `packages.x86_64-linux.nixos-x86_64-image` - Build qcow2 image (x86_64)
+- `packages.aarch64-linux.nixos-aarch64-image` - Build qcow2 image (aarch64)
 - `nixosModules.vm-host` - NixOS module for configuring libvirtd
+- `QEMU_EFI_AARCH64` env var - Auto-set to UEFI firmware path on macOS
 
 ## Output Locations
 
-Built images go to `packer/almalinux10/output/` (gitignored):
+**AlmaLinux (Packer)** - `packer/almalinux10/output/` (gitignored):
 - x86_64: `output/almalinux10/almalinux10`
 - aarch64: `output/almalinux10-aarch64/almalinux10-aarch64`
+
+**NixOS** - `nixos/output/` (gitignored):
+- x86_64: `nixos/output/nixos-x86_64/nixos.qcow2`
+- aarch64: `nixos/output/nixos-aarch64/nixos.qcow2`

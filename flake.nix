@@ -165,7 +165,64 @@
         } else { });
       }
     ) // {
-      # NixOS module for hal9000 or other NixOS hosts
+      # =========================================================================
+      # NixOS Configurations - VM image definitions
+      # Build with: nix build .#nixos-x86_64-image  (on x86_64-linux)
+      #             nix build .#nixos-aarch64-image (on aarch64-linux)
+      # =========================================================================
+      nixosConfigurations = {
+        # x86_64-linux VM configuration
+        nixos-x86_64 = nixpkgs.lib.nixosSystem {
+          system = "x86_64-linux";
+          modules = [
+            ./nixos/x86_64
+            ./nixos/modules/base.nix
+            ./nixos/modules/cloud-init.nix
+            ./nixos/modules/qemu-guest.nix
+          ];
+        };
+
+        # aarch64-linux VM configuration
+        nixos-aarch64 = nixpkgs.lib.nixosSystem {
+          system = "aarch64-linux";
+          modules = [
+            ./nixos/aarch64
+            ./nixos/modules/base.nix
+            ./nixos/modules/cloud-init.nix
+            ./nixos/modules/qemu-guest.nix
+          ];
+        };
+      };
+
+      # =========================================================================
+      # VM Image Build Outputs
+      # These are Linux derivations but exposed on all systems for remote builds
+      # Build with: nix build .#nixos-x86_64-image (uses remote builder if needed)
+      # =========================================================================
+
+      # x86_64 image - builds on x86_64-linux (remote builder used from other systems)
+      packages.x86_64-linux.nixos-x86_64-image =
+        self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+      packages.aarch64-linux.nixos-x86_64-image =
+        self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+      packages.aarch64-darwin.nixos-x86_64-image =
+        self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+      packages.x86_64-darwin.nixos-x86_64-image =
+        self.nixosConfigurations.nixos-x86_64.config.system.build.qcow2;
+
+      # aarch64 image - builds on aarch64-linux (remote builder used from other systems)
+      packages.aarch64-linux.nixos-aarch64-image =
+        self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+      packages.x86_64-linux.nixos-aarch64-image =
+        self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+      packages.aarch64-darwin.nixos-aarch64-image =
+        self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+      packages.x86_64-darwin.nixos-aarch64-image =
+        self.nixosConfigurations.nixos-aarch64.config.system.build.qcow2;
+
+      # =========================================================================
+      # NixOS Module for KVM hosts
+      # =========================================================================
       nixosModules.vm-host = { config, pkgs, ... }: {
         virtualisation.libvirtd = {
           enable = true;

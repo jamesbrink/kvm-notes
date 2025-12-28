@@ -316,3 +316,116 @@ libvirt-undefine:
 # Console into libvirt VM
 libvirt-console:
     virsh console almalinux10
+
+# ============================================================================
+# NixOS VM Images (Nix-based builds - alternative to Packer)
+# NOTE: Disk images can only be built on native Linux architecture
+#       Use remote builds for cross-architecture builds
+# ============================================================================
+
+# Build NixOS x86_64 image (requires x86_64-linux)
+build-nixos-x86:
+    @echo "Building NixOS x86_64 image..."
+    @echo "NOTE: This must be run on x86_64-linux (use remote build on macOS)"
+    nix build .#nixos-x86_64-image --out-link nixos/output/nixos-x86_64
+    @echo "Image built: nixos/output/nixos-x86_64/nixos.qcow2"
+
+# Build NixOS aarch64 image (requires aarch64-linux)
+build-nixos-arm:
+    @echo "Building NixOS aarch64 image..."
+    @echo "NOTE: This must be run on aarch64-linux (use remote build on macOS)"
+    nix build .#nixos-aarch64-image --out-link nixos/output/nixos-aarch64
+    @echo "Image built: nixos/output/nixos-aarch64/nixos.qcow2"
+
+# Run NixOS x86_64 image (Linux with KVM)
+run-nixos-x86:
+    qemu-system-x86_64 \
+        -machine q35,accel=kvm \
+        -cpu host \
+        -m 2048 \
+        -smp 2 \
+        -drive file=nixos/output/nixos-x86_64/nixos.qcow2,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+        -device virtio-net,netdev=net0 \
+        -display none \
+        -serial mon:stdio
+
+# Run NixOS x86_64 with TCG emulation (macOS - slow)
+run-nixos-x86-tcg:
+    qemu-system-x86_64 \
+        -machine q35,accel=tcg \
+        -cpu qemu64 \
+        -m 2048 \
+        -smp 2 \
+        -drive file=nixos/output/nixos-x86_64/nixos.qcow2,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+        -device virtio-net,netdev=net0 \
+        -nographic
+
+# Run NixOS aarch64 image (macOS HVF - native speed on Apple Silicon)
+run-nixos-arm:
+    qemu-system-aarch64 \
+        -machine virt,accel=hvf \
+        -cpu host \
+        -m 2048 \
+        -smp 2 \
+        -bios "{{efi_aarch64}}" \
+        -drive file=nixos/output/nixos-aarch64/nixos.qcow2,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+        -device virtio-net,netdev=net0 \
+        -nographic
+
+# Run NixOS aarch64 with VNC display
+run-nixos-arm-vnc:
+    @echo "Connect via VNC to localhost:5901"
+    qemu-system-aarch64 \
+        -machine virt,accel=hvf \
+        -cpu host \
+        -m 2048 \
+        -smp 2 \
+        -bios "{{efi_aarch64}}" \
+        -drive file=nixos/output/nixos-aarch64/nixos.qcow2,format=qcow2,if=virtio \
+        -netdev user,id=net0,hostfwd=tcp::2223-:22 \
+        -device virtio-net,netdev=net0 \
+        -device virtio-gpu-pci \
+        -vnc :1
+
+# SSH into running NixOS VM (port 2223 to avoid conflict with AlmaLinux)
+ssh-nixos:
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2223 root@localhost
+
+# SSH as admin user
+ssh-nixos-admin:
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2223 admin@localhost
+
+# Remote build NixOS x86_64 on Linux host
+remote-build-nixos-x86 host="hal9000":
+    ssh {{host}} "cd ~/kvm-notes && nix build .#nixos-x86_64-image --out-link nixos/output/nixos-x86_64"
+    @echo "Image built on {{host}}. Use 'just remote-fetch-nixos-x86 {{host}}' to download."
+
+# Remote build NixOS aarch64 on ARM Linux host
+remote-build-nixos-arm host="hal9000":
+    ssh {{host}} "cd ~/kvm-notes && nix build .#nixos-aarch64-image --out-link nixos/output/nixos-aarch64"
+    @echo "Image built on {{host}}. Use 'just remote-fetch-nixos-arm {{host}}' to download."
+
+# Fetch NixOS x86_64 image from remote
+remote-fetch-nixos-x86 host="hal9000":
+    mkdir -p nixos/output/nixos-x86_64
+    rsync -avzL {{host}}:~/kvm-notes/nixos/output/nixos-x86_64/ nixos/output/nixos-x86_64/
+
+# Fetch NixOS aarch64 image from remote
+remote-fetch-nixos-arm host="hal9000":
+    mkdir -p nixos/output/nixos-aarch64
+    rsync -avzL {{host}}:~/kvm-notes/nixos/output/nixos-aarch64/ nixos/output/nixos-aarch64/
+
+# Show NixOS x86_64 image info
+nixos-image-info-x86:
+    qemu-img info nixos/output/nixos-x86_64/nixos.qcow2
+
+# Show NixOS aarch64 image info
+nixos-image-info-arm:
+    qemu-img info nixos/output/nixos-aarch64/nixos.qcow2
+
+# Clean NixOS build outputs
+clean-nixos:
+    rm -rf nixos/output
