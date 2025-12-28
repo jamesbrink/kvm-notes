@@ -17,10 +17,14 @@ just
 
 ## Platform Support
 
-| Platform | Acceleration | Use Case |
-|----------|-------------|----------|
-| Linux (hal9000) | KVM | Full VM building, production images |
-| macOS | HVF / Lima | Development, testing |
+| Platform | Architecture | Acceleration | Recommended Approach |
+|----------|-------------|-------------|---------------------|
+| Linux (hal9000) | x86_64 | KVM | Packer builds - fully automated |
+| Linux ARM | aarch64 | KVM | Packer builds - fully automated |
+| macOS Intel | x86_64 | HVF | Lima or remote build on Linux |
+| macOS Apple Silicon | aarch64 | HVF/VZ | **Lima** (recommended) or remote build |
+
+> **Note**: Packer VNC boot commands have issues on macOS aarch64/HVF. Use Lima for local ARM VMs.
 
 ## Building AlmaLinux 10
 
@@ -62,14 +66,18 @@ just lima-shell
 ## Project Structure
 
 ```
-├── flake.nix                    # Nix flake with devShells
-├── justfile                     # Task runner commands
+├── flake.nix                           # Nix flake with devShells
+├── justfile                            # Task runner commands
 ├── packer/
 │   └── almalinux10/
-│       ├── almalinux10.pkr.hcl  # Packer HCL2 template
-│       └── http/
-│           └── ks.cfg           # Kickstart file
-├── legacy/                      # Legacy configs (CentOS 7, etc.)
+│       ├── x86_64/                     # x86_64 builds (Linux KVM)
+│       │   ├── almalinux10.pkr.hcl
+│       │   └── http/ks.cfg
+│       ├── aarch64/                    # ARM64 builds (Linux KVM or macOS HVF)
+│       │   ├── almalinux10.pkr.hcl
+│       │   └── http/ks.cfg
+│       └── output/                     # Built images (gitignored)
+├── legacy/                             # Legacy configs (CentOS 7, etc.)
 └── README.md
 ```
 
@@ -78,29 +86,33 @@ just lima-shell
 Run `just` to see all commands. Key ones:
 
 ```
-Packer:
-  just build-alma         # Build AlmaLinux 10 image
-  just build-alma-debug   # Build with VNC console visible
-  just packer-validate    # Validate packer config
+Packer (x86_64 - Linux):
+  just build-alma-x86     # Build x86_64 image (requires KVM)
+  just run-alma-x86       # Run x86_64 image
 
-QEMU (Linux):
-  just run-alma           # Run image with serial console
-  just run-alma-vnc       # Run with VNC display
-  just ssh-alma           # SSH into running VM
+Packer (aarch64 - Linux ARM or macOS):
+  just build-alma-arm     # Build ARM64 image
+  just run-alma-arm       # Run ARM64 image
 
-Lima (macOS):
-  just lima-start         # Start Lima VM
+Lima (macOS - RECOMMENDED for local VMs):
+  just lima-start         # Start AlmaLinux 10 VM
   just lima-shell         # Shell into Lima VM
   just lima-stop          # Stop Lima VM
+  just lima-templates     # List available templates
 
-Remote:
-  just remote-sync-build  # Sync to hal9000 and build
-  just remote-fetch       # Fetch built image from hal9000
+Remote Build:
+  just remote-sync-build  # Sync to hal9000 and build x86_64
+  just remote-fetch-x86   # Fetch built image from hal9000
 
-Libvirt:
+Libvirt (Linux):
   just libvirt-import     # Import image into libvirt
   just libvirt-list       # List all VMs
   just libvirt-console    # Console into VM
+
+Utilities:
+  just fmt                # Format HCL files
+  just lint               # Validate packer configs
+  just ssh-alma           # SSH into running VM (port 2222)
 ```
 
 ## Configuration
@@ -113,10 +125,14 @@ Default credentials (for packer builds):
 
 ### VM Resources
 
-Edit `packer/almalinux10/almalinux10.pkr.hcl`:
-- `disk_size`: Default 20G
-- `memory`: Default 2048 MB
-- `cpus`: Default 2
+Edit the packer template for your architecture:
+- `packer/almalinux10/x86_64/almalinux10.pkr.hcl`
+- `packer/almalinux10/aarch64/almalinux10.pkr.hcl`
+
+Default settings:
+- `disk_size`: 20G
+- `memory`: 2048 MB
+- `cpus`: 2
 
 ---
 

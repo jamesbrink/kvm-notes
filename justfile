@@ -146,12 +146,20 @@ ssh-alma-admin:
     ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -p 2222 admin@localhost
 
 # ============================================================================
-# Lima Commands (macOS - easiest way to get a Linux VM)
+# Lima Commands (macOS - RECOMMENDED for local ARM VMs)
+# Lima uses cloud images with VZ framework - fast and reliable on Apple Silicon
 # ============================================================================
 
-# Start a Lima VM with AlmaLinux (uses cloud image)
+# Start AlmaLinux 10 VM (recommended for local ARM development)
 lima-start:
+    @echo "Starting AlmaLinux 10 Lima VM..."
     limactl start --name=almalinux template://almalinux-10
+    @echo ""
+    @echo "VM started! Use 'just lima-shell' to connect"
+
+# Start with custom resources
+lima-start-large:
+    limactl start --name=almalinux --cpus=4 --memory=8 template://almalinux-10
 
 # Stop Lima VM
 lima-stop:
@@ -165,9 +173,26 @@ lima-delete:
 lima-shell:
     limactl shell almalinux
 
-# List Lima VMs
-lima-list:
+# Run command in Lima VM
+lima-run *cmd:
+    limactl shell almalinux -- {{cmd}}
+
+# SSH into Lima VM (alternative to shell)
+lima-ssh:
+    ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null \
+        -i ~/.lima/almalinux/ssh/id_rsa \
+        -p $(limactl show-ssh --format=port almalinux) \
+        $(limactl show-ssh --format=user almalinux)@127.0.0.1
+
+# Get Lima VM info
+lima-info:
     limactl list
+    @echo ""
+    limactl show-ssh almalinux 2>/dev/null || true
+
+# List available Lima templates
+lima-templates:
+    limactl start --list-templates | grep -E "(alma|rocky|centos|fedora)"
 
 # ============================================================================
 # Remote Build (via hal9000 or other Linux host)
